@@ -24,6 +24,7 @@ class Glue_Entity {
 	protected $types;
 	protected $autoincrement;
 	protected $pk;
+	protected $uk;
 	protected $fk;
 
 	// Internal details :
@@ -44,6 +45,7 @@ class Glue_Entity {
 		if ( ! isset($this->columns))		$this->columns		 = $this->default_columns();
 		if ( ! isset($this->types))			$this->types		 = $this->default_types();
 		if ( ! isset($this->pk))			$this->pk			 = $this->default_pk();
+		if ( ! isset($this->uk))			$this->uk			 = $this->default_uk();
 		if ( ! isset($this->fk))			$this->fk			 = $this->default_fk();
 		if ( ! isset($this->autoincrement))	$this->autoincrement = $this->default_autoincrement();
 	}
@@ -116,20 +118,24 @@ class Glue_Entity {
 		return $types;
 	}
 
-	protected function default_pk() {
-		$pk = array();
+	protected function default_uk($key = 'UNI') {
+		$uk = array();
 
 		$data = $this->introspect();
 		foreach($this->columns as $f => $arr) {
 			foreach ($arr as $table => $column) {
-				if (isset($data[$table][$column]['key']) && $data[$table][$column]['key'] === 'PRI') {
-					$pk[] = $f;
+				if (isset($data[$table][$column]['key']) && $data[$table][$column]['key'] === $key) {
+					$uk[] = $f;
 					break;
 				}
 			}
 		}
 
-		return $pk;
+		return $uk;
+	}
+
+	protected function default_pk() {
+		return $this->default_uk('PRI');
 	}
 
 	protected function default_fk() {
@@ -517,9 +523,11 @@ class Glue_Entity {
 
 		// Single column Pk value passed ? Warp it in an array :
 		if ( ! is_array($conditions)) {
-			if (count($this->pk) > 1)
+			if (is_int($conditions) AND count($this->pk) > 1)
 				throw new Kohana_Exception("Only one value passed for multiple columns pk !");
-			$conditions = array($this->pk[0] => $conditions);
+			elseif (is_string($conditions) AND !$this->uk)
+				throw new Kohana_Exception('Entity does not contain unique key');
+			$conditions = array($this->{(is_string($conditions) ? 'uk' : 'pk')}[0] => $conditions);
 		}
 
 		// Add conditions :
